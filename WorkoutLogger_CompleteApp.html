@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Workout Logger</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    select, input[type="number"], input[type="text"], button {
+      width: 100%; padding: 0.5rem; margin: 0.25rem 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: center; }
+    th { background-color: #f2f2f2; }
+    input[type="checkbox"] { transform: scale(1.2); }
+    .section { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h2>Workout Logger</h2>
+  <label for="weekSelect">Week</label>
+  <select id="weekSelect"></select>
+  <label for="daySelect">Day</label>
+  <select id="daySelect">
+    <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+    <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+  </select>
+  <label for="exerciseSelect">Exercise</label>
+  <select id="exerciseSelect"></select>
+  <div class="section">
+    <label>1RM</label>
+    <input type="number" id="rm" />
+    <label>% of 1RM</label>
+    <input type="number" id="percent" value="60" />
+    <label>Reps</label>
+    <input type="number" id="reps" value="10" />
+    <label>Sets</label>
+    <input type="number" id="sets" value="10" />
+    <button onclick="generateLog()">Generate Log</button>
+  </div>
+  <table id="logTable">
+    <thead>
+      <tr>
+        <th>Set</th><th>Reps</th><th>%</th><th>1RM</th><th>Weight</th><th>Done</th><th>Notes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="section">
+    <h3>CFG - Set Exercises for This Week</h3>
+    <label>Exercise 1</label>
+    <input type="text" id="cfg1" />
+    <label>Exercise 2</label>
+    <input type="text" id="cfg2" />
+    <label>Exercise 3</label>
+    <input type="text" id="cfg3" />
+    <button onclick="saveCFG()">Save CFG</button>
+  </div>
+<script>
+  const weekSelect = document.getElementById("weekSelect");
+  const daySelect = document.getElementById("daySelect");
+  const exerciseSelect = document.getElementById("exerciseSelect");
+  const tableBody = document.querySelector("#logTable tbody");
+  const rmInput = document.getElementById("rm");
+  const percentInput = document.getElementById("percent");
+  const repsInput = document.getElementById("reps");
+  const setsInput = document.getElementById("sets");
+  function populateWeeks() {
+    weekSelect.innerHTML = "";
+    for (let i = 1; i <= 16; i++) {
+      let opt = document.createElement("option");
+      opt.value = "Week " + i;
+      opt.textContent = "Week " + i;
+      weekSelect.appendChild(opt);
+    }
+  }
+  function loadCFG() {
+    const week = weekSelect.value;
+    const cfg = JSON.parse(localStorage.getItem("cfg_" + week)) || ["Incline Bench", "Chest Fly", "Push-Up"];
+    exerciseSelect.innerHTML = "";
+    cfg.forEach(ex => {
+      let opt = document.createElement("option");
+      opt.value = ex;
+      opt.textContent = ex;
+      exerciseSelect.appendChild(opt);
+    });
+    document.getElementById("cfg1").value = cfg[0];
+    document.getElementById("cfg2").value = cfg[1];
+    document.getElementById("cfg3").value = cfg[2];
+  }
+  function saveCFG() {
+    const week = weekSelect.value;
+    const cfg = [
+      document.getElementById("cfg1").value || "Incline Bench",
+      document.getElementById("cfg2").value || "Chest Fly",
+      document.getElementById("cfg3").value || "Push-Up"
+    ];
+    localStorage.setItem("cfg_" + week, JSON.stringify(cfg));
+    loadCFG();
+    saveLog();
+  }
+  function generateLog() {
+    const week = weekSelect.value;
+    const day = daySelect.value;
+    const exercise = exerciseSelect.value;
+    const key = `log_${week}_${day}_${exercise}`;
+    const reps = repsInput.value;
+    const sets = setsInput.value;
+    const percent = percentInput.value;
+    const rm = rmInput.value;
+    const weight = rm && percent ? (rm * percent / 100).toFixed(1) : "";
+    const logData = [];
+    for (let i = 1; i <= sets; i++) {
+      logData.push({ set: i, reps, percent, rm, weight, completed: false, notes: "" });
+    }
+    localStorage.setItem(key, JSON.stringify(logData));
+    loadLog();
+  }
+  function saveLog() {
+    const week = weekSelect.value;
+    const day = daySelect.value;
+    const exercise = exerciseSelect.value;
+    const key = `log_${week}_${day}_${exercise}`;
+    const rows = Array.from(tableBody.querySelectorAll("tr")).map(row => {
+      const tds = row.querySelectorAll("td");
+      return {
+        set: tds[0].textContent,
+        reps: tds[1].textContent,
+        percent: tds[2].textContent,
+        rm: tds[3].textContent,
+        weight: tds[4].textContent,
+        completed: tds[5].querySelector("input").checked,
+        notes: tds[6].querySelector("input").value
+      };
+    });
+    localStorage.setItem(key, JSON.stringify(rows));
+  }
+  function loadLog() {
+    const week = weekSelect.value;
+    const day = daySelect.value;
+    const exercise = exerciseSelect.value;
+    const key = `log_${week}_${day}_${exercise}`;
+    const data = JSON.parse(localStorage.getItem(key)) || [];
+    tableBody.innerHTML = "";
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.set}</td>
+        <td>${row.reps}</td>
+        <td>${row.percent}</td>
+        <td>${row.rm}</td>
+        <td>${row.weight}</td>
+        <td><input type="checkbox" ${row.completed ? "checked" : ""}></td>
+        <td><input type="text" value="${row.notes || ""}"></td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  }
+  [weekSelect, daySelect, exerciseSelect].forEach(el => {
+    el.addEventListener("change", () => {
+      saveLog();
+      loadCFG();
+      loadLog();
+    });
+  });
+  window.onload = () => {
+    populateWeeks();
+    loadCFG();
+    loadLog();
+  };
+</script>
+</body>
+</html>
